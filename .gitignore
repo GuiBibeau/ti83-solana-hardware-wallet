@@ -1,0 +1,13 @@
+/build/
+/main
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+CMakeCache.txt
+CMakeFiles/
+*.cmake
+.vscode/
