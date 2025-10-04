@@ -17,24 +17,22 @@ static size_t solana_write_callback(void *contents, size_t size, size_t nmemb, v
 {
     size_t total = size * nmemb;
     solana_response_buffer_t *buffer = (solana_response_buffer_t *)userp;
+    size_t written = 0u;
 
-    if (total == 0 || buffer == NULL)
+    if ((buffer != NULL) && (total > 0u))
     {
-        return 0;
+        char *new_data = (char *)realloc(buffer->data, buffer->length + total + 1u);
+        if (new_data != NULL)
+        {
+            memcpy(new_data + buffer->length, contents, total);
+            buffer->data = new_data;
+            buffer->length += total;
+            buffer->data[buffer->length] = '\0';
+            written = total;
+        }
     }
 
-    char *new_data = (char *)realloc(buffer->data, buffer->length + total + 1u);
-    if (new_data == NULL)
-    {
-        return 0;
-    }
-
-    memcpy(new_data + buffer->length, contents, total);
-    buffer->data = new_data;
-    buffer->length += total;
-    buffer->data[buffer->length] = '\0';
-
-    return total;
+    return written;
 }
 
 static char *solana_strdup(const char *source)
@@ -61,7 +59,7 @@ static int solana_ensure_curl_initialized(void)
     static int initialized = 0;
     static int init_status = SOLANA_OK;
 
-    if (!initialized)
+    if (initialized == 0)
     {
         CURLcode result = curl_global_init(CURL_GLOBAL_DEFAULT);
         if (result != CURLE_OK)
@@ -161,98 +159,143 @@ int solana_client_rpc_request(solana_client_t *client,
                               const char *method,
                               const char *params_json,
                               char **out_response)
-                              {
-    if (client == NULL || client->rpc_url == NULL || method == NULL || method[0] == '\0' || out_response == NULL)
+{
+    int status = SOLANA_ERROR_INVALID_ARGUMENT;
+    solana_response_buffer_t buffer;
+    const char *params = NULL;
+    uint64_t request_id = 0u;
+    char *payload = NULL;
+    size_t payload_length = 0u;
+    int written = 0;
+    CURL *curl_handle = NULL;
+    struct curl_slist *headers = NULL;
+    CURLcode perform_result = CURLE_OK;
+    long http_status = 0;
+
+    if ((client == NULL) || (client->rpc_url == NULL) || (method == NULL) || (method[0] == '\0') || (out_response == NULL))
     {
-        return SOLANA_ERROR_INVALID_ARGUMENT;
+        return status;
     }
 
     *out_response = NULL;
+    memset(&buffer, 0, sizeof(buffer));
 
-    solana_response_buffer_t buffer = {0};
-    const char *params = (params_json != NULL && params_json[0] != '\0') ? params_json : "[]";
-    uint64_t request_id = client->next_request_id++;
+    params = ((params_json != NULL) && (params_json[0] != '\0')) ? params_json : "[]";
+    request_id = client->next_request_id++;
 
-    static const char *payload_template =
-        "{\"jsonrpc\":\"2.0\",\"id\":%" PRIu64 ",\"method\":\"%s\",\"params\":%s}";
+    payload_length = (size_t)snprintf(NULL, 0,
+                                      "{\"jsonrpc\":\"2.0\",\"id\":%" PRIu64 ",\"method\":\"%s\",\"params\":%s}",
+                                      request_id,
+                                      method,
+                                      params);
 
-    size_t payload_length = (size_t)snprintf(NULL, 0, payload_template, request_id, method, params);
-    char *payload = (char *)malloc(payload_length + 1u);
+    payload = (char *)malloc(payload_length + 1u);
     if (payload == NULL)
     {
-        return SOLANA_ERROR_ALLOCATION_FAILED;
+        status = SOLANA_ERROR_ALLOCATION_FAILED;
     }
-
-    int written = snprintf(payload, payload_length + 1u, payload_template, request_id, method, params);
-    if (written < 0 || (size_t)written != payload_length)
+    else
     {
-        free(payload);
-        return SOLANA_ERROR_CURL;
+        written = snprintf(payload, payload_length + 1u,
+                           "{\"jsonrpc\":\"2.0\",\"id\":%" PRIu64 ",\"method\":\"%s\",\"params\":%s}",
+                           request_id,
+                           method,
+                           params);
+        if ((written < 0) || ((size_t)written != payload_length))
+        {
+            status = SOLANA_ERROR_CURL;
+        }
+        else
+        {
+            status = SOLANA_OK;
+        }
     }
 
-    CURL *curl_handle = curl_easy_init();
-    if (curl_handle == NULL)
+    if (status == SOLANA_OK)
     {
-        free(payload);
-        return SOLANA_ERROR_CURL;
+        curl_handle = curl_easy_init();
+        if (curl_handle == NULL)
+        {
+            status = SOLANA_ERROR_CURL;
+        }
     }
 
-    struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    if (headers == NULL)
+    if (status == SOLANA_OK)
     {
-        curl_easy_cleanup(curl_handle);
-        free(payload);
-        return SOLANA_ERROR_ALLOCATION_FAILED;
+        headers = curl_slist_append(NULL, "Content-Type: application/json");
+        if (headers == NULL)
+        {
+            status = SOLANA_ERROR_ALLOCATION_FAILED;
+        }
     }
 
-    curl_easy_setopt(curl_handle, CURLOPT_URL, client->rpc_url);
-    curl_easy_setopt(curl_handle, CURLOPT_POST, 1L);
-    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, payload);
-    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDSIZE, (long)payload_length);
-    curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, client->timeout_ms);
-    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, solana_write_callback);
-    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &buffer);
-    curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "c_wallet/solana_client");
-
-    CURLcode perform_result = curl_easy_perform(curl_handle);
-
-    long http_status = 0;
-    if (perform_result == CURLE_OK)
+    if (status == SOLANA_OK)
     {
-        curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &http_status);
+        curl_easy_setopt(curl_handle, CURLOPT_URL, client->rpc_url);
+        curl_easy_setopt(curl_handle, CURLOPT_POST, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, payload);
+        curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDSIZE, (long)payload_length);
+        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, client->timeout_ms);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, solana_write_callback);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &buffer);
+        curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "c_wallet/solana_client");
+
+        perform_result = curl_easy_perform(curl_handle);
+        if (perform_result != CURLE_OK)
+        {
+            status = SOLANA_ERROR_CURL;
+        }
+        else
+        {
+            curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &http_status);
+        }
     }
 
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl_handle);
-    free(payload);
-
-    if (perform_result != CURLE_OK)
-    {
-        solana_response_buffer_reset(&buffer);
-        return SOLANA_ERROR_CURL;
-    }
-
-    if (buffer.data == NULL)
+    if ((status == SOLANA_OK) && (buffer.data == NULL))
     {
         buffer.data = (char *)malloc(1u);
         if (buffer.data == NULL)
         {
-            return SOLANA_ERROR_ALLOCATION_FAILED;
+            status = SOLANA_ERROR_ALLOCATION_FAILED;
         }
-        buffer.data[0] = '\0';
-        buffer.length = 0u;
+        else
+        {
+            buffer.data[0] = '\0';
+            buffer.length = 0u;
+        }
     }
 
-    if (http_status >= 200 && http_status < 300)
+    if ((status == SOLANA_OK) && ((http_status < 200) || (http_status >= 300)))
+    {
+        status = SOLANA_ERROR_HTTP_STATUS;
+    }
+
+    if (headers != NULL)
+    {
+        curl_slist_free_all(headers);
+    }
+
+    if (curl_handle != NULL)
+    {
+        curl_easy_cleanup(curl_handle);
+    }
+
+    if (payload != NULL)
+    {
+        free(payload);
+    }
+
+    if ((status == SOLANA_OK) || (status == SOLANA_ERROR_HTTP_STATUS))
     {
         *out_response = buffer.data;
-        return SOLANA_OK;
+    }
+    else
+    {
+        solana_response_buffer_reset(&buffer);
     }
 
-    *out_response = buffer.data;
-    return SOLANA_ERROR_HTTP_STATUS;
+    return status;
 }
 
 int solana_client_get_latest_blockhash(solana_client_t *client, char **out_response)
@@ -267,112 +310,176 @@ int solana_client_request_airdrop(solana_client_t *client,
                                   const char *public_key_base58,
                                   uint64_t lamports,
                                   char **out_response)
-                                  {
-    if (client == NULL || public_key_base58 == NULL || public_key_base58[0] == '\0' || out_response == NULL)
+{
+    int status = SOLANA_ERROR_INVALID_ARGUMENT;
+    size_t params_length = 0u;
+    char *params = NULL;
+    int written = 0;
+
+    if (out_response != NULL)
     {
-        return SOLANA_ERROR_INVALID_ARGUMENT;
+        *out_response = NULL;
     }
 
-    size_t params_length = (size_t)snprintf(NULL, 0, "[\"%s\",%" PRIu64 "]", public_key_base58, lamports);
-    char *params = (char *)malloc(params_length + 1u);
-    if (params == NULL)
+    if ((client != NULL) && (public_key_base58 != NULL) && (public_key_base58[0] != '\0') && (out_response != NULL))
     {
-        return SOLANA_ERROR_ALLOCATION_FAILED;
+        params_length = (size_t)snprintf(NULL, 0, "[\"%s\",%" PRIu64 "]", public_key_base58, lamports);
+        params = (char *)malloc(params_length + 1u);
+        if (params != NULL)
+        {
+            written = snprintf(params, params_length + 1u, "[\"%s\",%" PRIu64 "]", public_key_base58, lamports);
+            if ((written < 0) || ((size_t)written != params_length))
+            {
+                status = SOLANA_ERROR_CURL;
+            }
+            else
+            {
+                status = solana_client_rpc_request(client, "requestAirdrop", params, out_response);
+            }
+        }
+        else
+        {
+            status = SOLANA_ERROR_ALLOCATION_FAILED;
+        }
     }
 
-    int written = snprintf(params, params_length + 1u, "[\"%s\",%" PRIu64 "]", public_key_base58, lamports);
-    if (written < 0 || (size_t)written != params_length)
+    if (params != NULL)
     {
         free(params);
-        return SOLANA_ERROR_CURL;
     }
 
-    int status = solana_client_rpc_request(client, "requestAirdrop", params, out_response);
-    free(params);
     return status;
 }
 
 int solana_client_get_balance(solana_client_t *client,
                               const char *public_key_base58,
                               char **out_response)
-                              {
-    if (client == NULL || public_key_base58 == NULL || public_key_base58[0] == '\0' || out_response == NULL)
+{
+    int status = SOLANA_ERROR_INVALID_ARGUMENT;
+    size_t params_length = 0u;
+    char *params = NULL;
+    int written = 0;
+
+    if (out_response != NULL)
     {
-        return SOLANA_ERROR_INVALID_ARGUMENT;
+        *out_response = NULL;
     }
 
-    size_t params_length = (size_t)snprintf(NULL, 0, "[\"%s\",{\"commitment\":\"confirmed\"}]", public_key_base58);
-    char *params = (char *)malloc(params_length + 1u);
-    if (params == NULL)
+    if ((client != NULL) && (public_key_base58 != NULL) && (public_key_base58[0] != '\0') && (out_response != NULL))
     {
-        return SOLANA_ERROR_ALLOCATION_FAILED;
+        params_length = (size_t)snprintf(NULL, 0, "[\"%s\",{\"commitment\":\"confirmed\"}]", public_key_base58);
+        params = (char *)malloc(params_length + 1u);
+        if (params != NULL)
+        {
+            written = snprintf(params, params_length + 1u, "[\"%s\",{\"commitment\":\"confirmed\"}]", public_key_base58);
+            if ((written < 0) || ((size_t)written != params_length))
+            {
+                status = SOLANA_ERROR_CURL;
+            }
+            else
+            {
+                status = solana_client_rpc_request(client, "getBalance", params, out_response);
+            }
+        }
+        else
+        {
+            status = SOLANA_ERROR_ALLOCATION_FAILED;
+        }
     }
 
-    int written = snprintf(params, params_length + 1u, "[\"%s\",{\"commitment\":\"confirmed\"}]", public_key_base58);
-    if (written < 0 || (size_t)written != params_length)
+    if (params != NULL)
     {
         free(params);
-        return SOLANA_ERROR_CURL;
     }
 
-    int status = solana_client_rpc_request(client, "getBalance", params, out_response);
-    free(params);
     return status;
 }
 
 int solana_client_get_signature_status(solana_client_t *client,
                                        const char *signature,
                                        char **out_response)
-                                       {
-    if (client == NULL || signature == NULL || signature[0] == '\0' || out_response == NULL)
+{
+    int status = SOLANA_ERROR_INVALID_ARGUMENT;
+    size_t params_length = 0u;
+    char *params = NULL;
+    int written = 0;
+
+    if (out_response != NULL)
     {
-        return SOLANA_ERROR_INVALID_ARGUMENT;
+        *out_response = NULL;
     }
 
-    size_t params_length = (size_t)snprintf(NULL, 0, "[[\"%s\"],{\"searchTransactionHistory\":true}]", signature);
-    char *params = (char *)malloc(params_length + 1u);
-    if (params == NULL)
+    if ((client != NULL) && (signature != NULL) && (signature[0] != '\0') && (out_response != NULL))
     {
-        return SOLANA_ERROR_ALLOCATION_FAILED;
+        params_length = (size_t)snprintf(NULL, 0, "[[\"%s\"],{\"searchTransactionHistory\":true}]", signature);
+        params = (char *)malloc(params_length + 1u);
+        if (params != NULL)
+        {
+            written = snprintf(params, params_length + 1u, "[[\"%s\"],{\"searchTransactionHistory\":true}]", signature);
+            if ((written < 0) || ((size_t)written != params_length))
+            {
+                status = SOLANA_ERROR_CURL;
+            }
+            else
+            {
+                status = solana_client_rpc_request(client, "getSignatureStatuses", params, out_response);
+            }
+        }
+        else
+        {
+            status = SOLANA_ERROR_ALLOCATION_FAILED;
+        }
     }
 
-    int written = snprintf(params, params_length + 1u, "[[\"%s\"],{\"searchTransactionHistory\":true}]", signature);
-    if (written < 0 || (size_t)written != params_length)
+    if (params != NULL)
     {
         free(params);
-        return SOLANA_ERROR_CURL;
     }
 
-    int status = solana_client_rpc_request(client, "getSignatureStatuses", params, out_response);
-    free(params);
     return status;
 }
 
 int solana_client_send_transaction(solana_client_t *client,
-                                    const char *signed_transaction_base64,
-                                    char **out_response)
-                                    {
-    if (signed_transaction_base64 == NULL || signed_transaction_base64[0] == '\0')
-    {
-        return SOLANA_ERROR_INVALID_ARGUMENT;
-    }
-
+                                   const char *signed_transaction_base64,
+                                   char **out_response)
+{
+    int status = SOLANA_ERROR_INVALID_ARGUMENT;
     static const char *params_template = "[\"%s\",{\"encoding\":\"base64\"}]";
-    size_t params_length = (size_t)snprintf(NULL, 0, params_template, signed_transaction_base64);
-    char *params = (char *)malloc(params_length + 1u);
-    if (params == NULL)
+    size_t params_length = 0u;
+    char *params = NULL;
+    int written = 0;
+
+    if (out_response != NULL)
     {
-        return SOLANA_ERROR_ALLOCATION_FAILED;
+        *out_response = NULL;
     }
 
-    int written = snprintf(params, params_length + 1u, params_template, signed_transaction_base64);
-    if (written < 0 || (size_t)written != params_length)
+    if ((client != NULL) && (signed_transaction_base64 != NULL) && (signed_transaction_base64[0] != '\0') && (out_response != NULL))
+    {
+        params_length = (size_t)snprintf(NULL, 0, params_template, signed_transaction_base64);
+        params = (char *)malloc(params_length + 1u);
+        if (params != NULL)
+        {
+            written = snprintf(params, params_length + 1u, params_template, signed_transaction_base64);
+            if ((written < 0) || ((size_t)written != params_length))
+            {
+                status = SOLANA_ERROR_CURL;
+            }
+            else
+            {
+                status = solana_client_rpc_request(client, "sendTransaction", params, out_response);
+            }
+        }
+        else
+        {
+            status = SOLANA_ERROR_ALLOCATION_FAILED;
+        }
+    }
+
+    if (params != NULL)
     {
         free(params);
-        return SOLANA_ERROR_CURL;
     }
 
-    int status = solana_client_rpc_request(client, "sendTransaction", params, out_response);
-    free(params);
     return status;
 }

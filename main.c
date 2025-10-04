@@ -847,9 +847,9 @@ static int solana_build_transfer_transaction(const uint8_t *from_public_key,
     uint8_t readonly_unsigned = 1u;
     int include_memo = ((memo != NULL) && (memo_len > 0u));
     int encoded_signature_len = 0;
-    int result = APP_ERR_IO;
     int decoded = 0;
     uint8_t memo_program_index = 0u;
+    int status = APP_ERR_IO;
 
     if ((from_public_key == NULL) || (to_public_key == NULL) || (recent_blockhash == NULL) ||
         (private_key == NULL) || (out_base64 == NULL))
@@ -868,103 +868,130 @@ static int solana_build_transfer_transaction(const uint8_t *from_public_key,
     memset(instruction_data, 0, sizeof(instruction_data));
     memset(memo_program_id, 0, sizeof(memo_program_id));
 
-    if (include_memo != 0)
+    status = APP_OK;
+
+    if ((status == APP_OK) && (include_memo != 0))
     {
         decoded = solana_base58_decode(SOLANA_MEMO_PROGRAM_BASE58, memo_program_id, sizeof(memo_program_id));
         if (decoded != (int)sizeof(memo_program_id))
         {
-            goto exit_function;
+            status = APP_ERR_IO;
         }
-        account_key_count++;
-        instruction_count++;
-        readonly_unsigned = 2u;
-    }
-
-    if ((solana_append_u8(message, sizeof(message), &message_len, 1u) == 0) ||
-        (solana_append_u8(message, sizeof(message), &message_len, 0u) == 0) ||
-        (solana_append_u8(message, sizeof(message), &message_len, readonly_unsigned) == 0) ||
-        (solana_append_shortvec(message, sizeof(message), &message_len, account_key_count) == 0) ||
-        (solana_append_bytes(message, sizeof(message), &message_len, from_public_key, WALLET_PUBLIC_KEY_LEN) == 0) ||
-        (solana_append_bytes(message, sizeof(message), &message_len, to_public_key, WALLET_PUBLIC_KEY_LEN) == 0) ||
-        (solana_append_bytes(message, sizeof(message), &message_len, SOLANA_SYSTEM_PROGRAM_ID, WALLET_PUBLIC_KEY_LEN) == 0) ||
-        ((include_memo != 0) && (solana_append_bytes(message, sizeof(message), &message_len, memo_program_id, sizeof(memo_program_id)) == 0)) ||
-        (solana_append_bytes(message, sizeof(message), &message_len, recent_blockhash, WALLET_PUBLIC_KEY_LEN) == 0) ||
-        (solana_append_shortvec(message, sizeof(message), &message_len, instruction_count) == 0))
-    {
-        goto exit_function;
-    }
-
-    if ((solana_append_u8(message, sizeof(message), &message_len, 2u) == 0) ||
-        (solana_append_shortvec(message, sizeof(message), &message_len, 2u) == 0) ||
-        (solana_append_u8(message, sizeof(message), &message_len, 0u) == 0) ||
-        (solana_append_u8(message, sizeof(message), &message_len, 1u) == 0))
-    {
-        goto exit_function;
-    }
-
-    instruction_data[0] = 2u;
-    instruction_data[1] = 0u;
-    instruction_data[2] = 0u;
-    instruction_data[3] = 0u;
-    instruction_data[4] = (uint8_t)(lamports & 0xffu);
-    instruction_data[5] = (uint8_t)((lamports >> 8u) & 0xffu);
-    instruction_data[6] = (uint8_t)((lamports >> 16u) & 0xffu);
-    instruction_data[7] = (uint8_t)((lamports >> 24u) & 0xffu);
-    instruction_data[8] = (uint8_t)((lamports >> 32u) & 0xffu);
-    instruction_data[9] = (uint8_t)((lamports >> 40u) & 0xffu);
-    instruction_data[10] = (uint8_t)((lamports >> 48u) & 0xffu);
-    instruction_data[11] = (uint8_t)((lamports >> 56u) & 0xffu);
-
-    if ((solana_append_shortvec(message, sizeof(message), &message_len, sizeof(instruction_data)) == 0) ||
-        (solana_append_bytes(message, sizeof(message), &message_len, instruction_data, sizeof(instruction_data)) == 0))
-    {
-        goto exit_function;
-    }
-
-    if (include_memo != 0)
-    {
-        memo_program_index = (uint8_t)(account_key_count - 1u);
-        if ((solana_append_u8(message, sizeof(message), &message_len, memo_program_index) == 0) ||
-            (solana_append_shortvec(message, sizeof(message), &message_len, 0u) == 0) ||
-            (solana_append_shortvec(message, sizeof(message), &message_len, memo_len) == 0) ||
-            (solana_append_bytes(message, sizeof(message), &message_len, (const uint8_t *)memo, memo_len) == 0))
+        else
         {
-            goto exit_function;
+            account_key_count++;
+            instruction_count++;
+            readonly_unsigned = 2u;
         }
     }
 
-    ed25519_sign(signature, message, message_len, from_public_key, private_key);
-
-    if ((solana_append_shortvec(transaction, sizeof(transaction), &transaction_len, 1u) == 0) ||
-        (solana_append_bytes(transaction, sizeof(transaction), &transaction_len, signature, sizeof(signature)) == 0) ||
-        (solana_append_bytes(transaction, sizeof(transaction), &transaction_len, message, message_len) == 0))
+    if (status == APP_OK)
     {
-        goto exit_function;
+        int append_status = 0;
+        append_status = solana_append_u8(message, sizeof(message), &message_len, 1u);
+        append_status &= solana_append_u8(message, sizeof(message), &message_len, 0u);
+        append_status &= solana_append_u8(message, sizeof(message), &message_len, readonly_unsigned);
+        append_status &= solana_append_shortvec(message, sizeof(message), &message_len, account_key_count);
+        append_status &= solana_append_bytes(message, sizeof(message), &message_len, from_public_key, WALLET_PUBLIC_KEY_LEN);
+        append_status &= solana_append_bytes(message, sizeof(message), &message_len, to_public_key, WALLET_PUBLIC_KEY_LEN);
+        append_status &= solana_append_bytes(message, sizeof(message), &message_len, SOLANA_SYSTEM_PROGRAM_ID, WALLET_PUBLIC_KEY_LEN);
+        if ((include_memo != 0) && (append_status != 0))
+        {
+            append_status &= solana_append_bytes(message, sizeof(message), &message_len, memo_program_id, sizeof(memo_program_id));
+        }
+        append_status &= solana_append_bytes(message, sizeof(message), &message_len, recent_blockhash, WALLET_PUBLIC_KEY_LEN);
+        append_status &= solana_append_shortvec(message, sizeof(message), &message_len, instruction_count);
+
+        if (append_status == 0)
+        {
+            status = APP_ERR_IO;
+        }
     }
 
-    if (solana_base64_encode(transaction, transaction_len, out_base64, out_base64_size) == 0u)
+    if (status == APP_OK)
     {
-        goto exit_function;
+        int header_status = 0;
+        header_status = solana_append_u8(message, sizeof(message), &message_len, 2u);
+        header_status &= solana_append_shortvec(message, sizeof(message), &message_len, 2u);
+        header_status &= solana_append_u8(message, sizeof(message), &message_len, 0u);
+        header_status &= solana_append_u8(message, sizeof(message), &message_len, 1u);
+        if (header_status == 0)
+        {
+            status = APP_ERR_IO;
+        }
     }
 
-    if ((out_signature_base58 != NULL) && (signature_base58_size > 0u))
+    if (status == APP_OK)
+    {
+        instruction_data[0] = 2u;
+        instruction_data[1] = 0u;
+        instruction_data[2] = 0u;
+        instruction_data[3] = 0u;
+        instruction_data[4] = (uint8_t)(lamports & 0xffu);
+        instruction_data[5] = (uint8_t)((lamports >> 8u) & 0xffu);
+        instruction_data[6] = (uint8_t)((lamports >> 16u) & 0xffu);
+        instruction_data[7] = (uint8_t)((lamports >> 24u) & 0xffu);
+        instruction_data[8] = (uint8_t)((lamports >> 32u) & 0xffu);
+        instruction_data[9] = (uint8_t)((lamports >> 40u) & 0xffu);
+        instruction_data[10] = (uint8_t)((lamports >> 48u) & 0xffu);
+        instruction_data[11] = (uint8_t)((lamports >> 56u) & 0xffu);
+
+        if ((solana_append_shortvec(message, sizeof(message), &message_len, sizeof(instruction_data)) == 0) ||
+            (solana_append_bytes(message, sizeof(message), &message_len, instruction_data, sizeof(instruction_data)) == 0))
+        {
+            status = APP_ERR_IO;
+        }
+    }
+
+    if ((status == APP_OK) && (include_memo != 0))
+    {
+        int memo_status = 0;
+        memo_program_index = (uint8_t)(account_key_count - 1u);
+        memo_status = solana_append_u8(message, sizeof(message), &message_len, memo_program_index);
+        memo_status &= solana_append_shortvec(message, sizeof(message), &message_len, 0u);
+        memo_status &= solana_append_shortvec(message, sizeof(message), &message_len, memo_len);
+        memo_status &= solana_append_bytes(message, sizeof(message), &message_len, (const uint8_t *)memo, memo_len);
+        if (memo_status == 0)
+        {
+            status = APP_ERR_IO;
+        }
+    }
+
+    if (status == APP_OK)
+    {
+        ed25519_sign(signature, message, message_len, from_public_key, private_key);
+        if ((solana_append_shortvec(transaction, sizeof(transaction), &transaction_len, 1u) == 0) ||
+            (solana_append_bytes(transaction, sizeof(transaction), &transaction_len, signature, sizeof(signature)) == 0) ||
+            (solana_append_bytes(transaction, sizeof(transaction), &transaction_len, message, message_len) == 0))
+        {
+            status = APP_ERR_IO;
+        }
+    }
+
+    if (status == APP_OK)
+    {
+        if (solana_base64_encode(transaction, transaction_len, out_base64, out_base64_size) == 0u)
+        {
+            status = APP_ERR_IO;
+        }
+    }
+
+    if ((status == APP_OK) && (out_signature_base58 != NULL) && (signature_base58_size > 0u))
     {
         encoded_signature_len = solana_base58_encode(signature, sizeof(signature), out_signature_base58, signature_base58_size);
         if (encoded_signature_len <= 0)
         {
-            goto exit_function;
+            status = APP_ERR_IO;
         }
     }
 
-    result = APP_OK;
-
-exit_function:
     wallet_secure_zero(signature, sizeof(signature));
     wallet_secure_zero(message, sizeof(message));
     wallet_secure_zero(transaction, sizeof(transaction));
     wallet_secure_zero(instruction_data, sizeof(instruction_data));
     wallet_secure_zero(memo_program_id, sizeof(memo_program_id));
-    return result;
+
+    return status;
 }
 
 static int fetch_wallet_payload(CalcSession *session,
@@ -1000,38 +1027,41 @@ static int fetch_wallet_payload(CalcSession *session,
     if (status != APP_OK)
     {
         fprintf(stderr, "Failed to fetch %s (error %d).\n", var_buffer, status);
-        goto exit_function;
     }
 
-    if ((content->num_entries == 0) || (content->entries[0] == NULL))
+    if (status == APP_OK)
     {
-        fprintf(stderr, "%s is empty or missing.\n", var_buffer);
-        status = APP_ERR_IO;
-        goto exit_function;
+        if ((content == NULL) || (content->num_entries == 0) || (content->entries[0] == NULL))
+        {
+            fprintf(stderr, "%s is empty or missing.\n", var_buffer);
+            status = APP_ERR_IO;
+        }
+        else
+        {
+            entry = content->entries[0];
+            if ((entry->data == NULL) || (entry->size < (STORED_KEY_PAYLOAD_LEN + 1u)))
+            {
+                fprintf(stderr, "%s does not contain an encrypted key.\n", var_buffer);
+                status = APP_ERR_IO;
+            }
+            else
+            {
+                payload_length = entry->data[0];
+                if ((payload_length != STORED_KEY_PAYLOAD_LEN) || (payload_length > (entry->size - 1u)))
+                {
+                    fprintf(stderr, "Stored data size is invalid (%u bytes).\n", payload_length);
+                    status = APP_ERR_IO;
+                }
+                else
+                {
+                    memcpy(public_key, entry->data + 1u, WALLET_PUBLIC_KEY_LEN);
+                    memcpy(blob, entry->data + 1u + WALLET_PUBLIC_KEY_LEN, WALLET_BLOB_LEN);
+                    status = APP_OK;
+                }
+            }
+        }
     }
 
-    entry = content->entries[0];
-    if ((entry->data == NULL) || (entry->size < (STORED_KEY_PAYLOAD_LEN + 1u)))
-    {
-        fprintf(stderr, "%s does not contain an encrypted key.\n", var_buffer);
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    payload_length = entry->data[0];
-    if ((payload_length != STORED_KEY_PAYLOAD_LEN) || (payload_length > (entry->size - 1u)))
-    {
-        fprintf(stderr, "Stored data size is invalid (%u bytes).\n", payload_length);
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    memcpy(public_key, entry->data + 1u, WALLET_PUBLIC_KEY_LEN);
-    memcpy(blob, entry->data + 1u + WALLET_PUBLIC_KEY_LEN, WALLET_BLOB_LEN);
-
-    status = APP_OK;
-
-exit_function:
     if ((status != APP_OK) || (entry == NULL))
     {
         wallet_secure_zero(public_key, WALLET_PUBLIC_KEY_LEN);
@@ -1053,7 +1083,7 @@ exit_function:
 
 static int create_encrypted_keypair(CalcSession *session)
 {
-    int status = APP_ERR_IO;
+    int status = APP_ERR_NO_CALC;
     char var_buffer[STRING_VAR_BUFFER_LENGTH] = {0};
     char password[PASSWORD_BUFFER_LENGTH] = {0};
     char password_confirm[PASSWORD_BUFFER_LENGTH] = {0};
@@ -1063,68 +1093,74 @@ static int create_encrypted_keypair(CalcSession *session)
     uint8_t blob[WALLET_BLOB_LEN];
     uint8_t storage_payload[STORED_KEY_PAYLOAD_LEN];
 
-    if (session == NULL)
+    if (session != NULL)
     {
-        status = APP_ERR_NO_CALC;
-        goto exit_function;
+        int flow_status = APP_OK;
+
+        if (prompt_string_slot(var_buffer, sizeof(var_buffer)) == 0)
+        {
+            flow_status = APP_ERR_IO;
+        }
+
+        if ((flow_status == APP_OK) && (prompt_password(password, sizeof(password), "Enter password: ") == 0))
+        {
+            flow_status = APP_ERR_IO;
+        }
+
+        if ((flow_status == APP_OK) && (prompt_password(password_confirm, sizeof(password_confirm), "Confirm password: ") == 0))
+        {
+            flow_status = APP_ERR_IO;
+        }
+
+        if (flow_status == APP_OK)
+        {
+            if (strcmp(password, password_confirm) != 0)
+            {
+                printf("Passwords do not match.\n");
+                flow_status = APP_ERR_IO;
+            }
+        }
+
+        if (flow_status == APP_OK)
+        {
+            if (ed25519_create_seed(seed) != 0)
+            {
+                fprintf(stderr, "Failed to generate secure seed.\n");
+                flow_status = APP_ERR_CRYPTO;
+            }
+            else
+            {
+                ed25519_create_keypair(public_key, private_key, seed);
+                wallet_secure_zero(seed, sizeof(seed));
+
+                flow_status = wallet_encrypt_private_key(password, private_key, sizeof(private_key), blob, sizeof(blob));
+                if (flow_status != APP_OK)
+                {
+                    fprintf(stderr, "Failed to encrypt private key (error %d).\n", flow_status);
+                }
+            }
+        }
+
+        if (flow_status == APP_OK)
+        {
+            memcpy(storage_payload, public_key, sizeof(public_key));
+            memcpy(storage_payload + sizeof(public_key), blob, sizeof(blob));
+
+            flow_status = calc_store_binary_string(session, var_buffer, storage_payload, sizeof(storage_payload));
+            if (flow_status != APP_OK)
+            {
+                fprintf(stderr, "Failed to store encrypted key (error %d).\n", flow_status);
+            }
+            else
+            {
+                printf("Encrypted keypair stored in %s.\n", var_buffer);
+                print_base58("Public key (base58): ", public_key, sizeof(public_key));
+            }
+        }
+
+        status = flow_status;
     }
 
-    if (prompt_string_slot(var_buffer, sizeof(var_buffer)) == 0)
-    {
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    if (prompt_password(password, sizeof(password), "Enter password: ") == 0)
-    {
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    if (prompt_password(password_confirm, sizeof(password_confirm), "Confirm password: ") == 0)
-    {
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    if (strcmp(password, password_confirm) != 0)
-    {
-        printf("Passwords do not match.\n");
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    if (ed25519_create_seed(seed) != 0)
-    {
-        fprintf(stderr, "Failed to generate secure seed.\n");
-        status = APP_ERR_CRYPTO;
-        goto exit_function;
-    }
-
-    ed25519_create_keypair(public_key, private_key, seed);
-    wallet_secure_zero(seed, sizeof(seed));
-
-    status = wallet_encrypt_private_key(password, private_key, sizeof(private_key), blob, sizeof(blob));
-    if (status != APP_OK)
-    {
-        fprintf(stderr, "Failed to encrypt private key (error %d).\n", status);
-        goto exit_function;
-    }
-
-    memcpy(storage_payload, public_key, sizeof(public_key));
-    memcpy(storage_payload + sizeof(public_key), blob, sizeof(blob));
-
-    status = calc_store_binary_string(session, var_buffer, storage_payload, sizeof(storage_payload));
-    if (status != APP_OK)
-    {
-        fprintf(stderr, "Failed to store encrypted key (error %d).\n", status);
-        goto exit_function;
-    }
-
-    printf("Encrypted keypair stored in %s.\n", var_buffer);
-    print_base58("Public key (base58): ", public_key, sizeof(public_key));
-
-exit_function:
     wallet_secure_zero(seed, sizeof(seed));
     wallet_secure_zero(password, sizeof(password));
     wallet_secure_zero(password_confirm, sizeof(password_confirm));
@@ -1138,58 +1174,50 @@ exit_function:
 
 static int load_encrypted_keypair(CalcSession *session)
 {
-    int status = APP_ERR_IO;
+    int status = APP_ERR_NO_CALC;
     char var_buffer[STRING_VAR_BUFFER_LENGTH] = {0};
     char password[PASSWORD_BUFFER_LENGTH] = {0};
     uint8_t blob[WALLET_BLOB_LEN];
     uint8_t private_key[WALLET_PRIVATE_KEY_LEN];
     uint8_t public_key[WALLET_PUBLIC_KEY_LEN];
 
-    if (session == NULL)
+    if (session != NULL)
     {
-        status = APP_ERR_NO_CALC;
-        goto exit_function;
-    }
-
-    status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
-    if (status != APP_OK)
-    {
-        goto exit_function;
-    }
-
-    print_base58("Stored public key (base58): ", public_key, sizeof(public_key));
-
-    if (prompt_yes_no("Decrypt private key for verification? (y/N): ") == 1)
-    {
-        if (prompt_password(password, sizeof(password), "Enter password: ") == 0)
+        int flow_status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
+        if (flow_status == APP_OK)
         {
-            status = APP_ERR_IO;
-            goto exit_function;
-        }
+            print_base58("Stored public key (base58): ", public_key, sizeof(public_key));
 
-        status = wallet_decrypt_private_key(password, blob, sizeof(blob), private_key, sizeof(private_key));
-        if (status != APP_OK)
-        {
-            fprintf(stderr, "Unable to decrypt private key (error %d).\n", status);
-            goto exit_function;
-        }
-
-        {
-            uint8_t derived_public_key[WALLET_PUBLIC_KEY_LEN];
-            ed25519_derive_public_key(derived_public_key, private_key);
-            if (memcmp(derived_public_key, public_key, sizeof(public_key)) != 0)
+            if (prompt_yes_no("Decrypt private key for verification? (y/N): ") == 1)
             {
-                print_base58("Derived public key (base58 mismatch): ", derived_public_key, sizeof(derived_public_key));
+                if (prompt_password(password, sizeof(password), "Enter password: ") == 0)
+                {
+                    flow_status = APP_ERR_IO;
+                }
+                else
+                {
+                    flow_status = wallet_decrypt_private_key(password, blob, sizeof(blob), private_key, sizeof(private_key));
+                    if (flow_status != APP_OK)
+                    {
+                        fprintf(stderr, "Unable to decrypt private key (error %d).\n", flow_status);
+                    }
+                    else
+                    {
+                        uint8_t derived_public_key[WALLET_PUBLIC_KEY_LEN];
+                        ed25519_derive_public_key(derived_public_key, private_key);
+                        if (memcmp(derived_public_key, public_key, sizeof(public_key)) != 0)
+                        {
+                            print_base58("Derived public key (base58 mismatch): ", derived_public_key, sizeof(derived_public_key));
+                        }
+                        wallet_secure_zero(derived_public_key, sizeof(derived_public_key));
+                    }
+                }
             }
-            wallet_secure_zero(derived_public_key, sizeof(derived_public_key));
         }
-    }
-    else
-    {
-        status = APP_OK;
+
+        status = flow_status;
     }
 
-exit_function:
     wallet_secure_zero(blob, sizeof(blob));
     wallet_secure_zero(private_key, sizeof(private_key));
     wallet_secure_zero(public_key, sizeof(public_key));
@@ -1201,7 +1229,7 @@ exit_function:
 
 static int airdrop_to_public_key(CalcSession *session)
 {
-    int status = APP_ERR_IO;
+    int status = APP_ERR_NO_CALC;
     char var_buffer[STRING_VAR_BUFFER_LENGTH] = {0};
     uint8_t blob[WALLET_BLOB_LEN];
     uint8_t public_key[WALLET_PUBLIC_KEY_LEN];
@@ -1219,103 +1247,105 @@ static int airdrop_to_public_key(CalcSession *session)
     memset(public_key_base58, 0, sizeof(public_key_base58));
     memset(signature, 0, sizeof(signature));
 
-    if (session == NULL)
+    if (session != NULL)
     {
-        status = APP_ERR_NO_CALC;
-        goto exit_function;
-    }
-
-    status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
-    if (status != APP_OK)
-    {
-        goto exit_function;
-    }
-
-    if (solana_base58_encode(public_key, sizeof(public_key), public_key_base58, sizeof(public_key_base58)) <= 0)
-    {
-        fprintf(stderr, "Failed to encode public key to base58.\n");
-        status = APP_ERR_CRYPTO;
-        goto exit_function;
-    }
-
-    printf("Using wallet stored in %s.\n", var_buffer);
-    printf("Public key: %s\n", public_key_base58);
-
-    if (prompt_lamports(&lamports) == 0)
-    {
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    rpc_url = solana_resolve_rpc_url();
-
-    if (solana_client_init(&client, rpc_url) != SOLANA_OK)
-    {
-        fprintf(stderr, "Failed to initialize Solana client.\n");
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    client_initialized = 1;
-
-    if (solana_client_request_airdrop(&client, public_key_base58, lamports, &response) != SOLANA_OK)
-    {
-        fprintf(stderr, "requestAirdrop RPC call failed.\n");
-        if (response != NULL)
+        int flow_status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
+        if (flow_status == APP_OK)
         {
-            fprintf(stderr, "%s\n", response);
+            if (solana_base58_encode(public_key, sizeof(public_key), public_key_base58, sizeof(public_key_base58)) <= 0)
+            {
+                fprintf(stderr, "Failed to encode public key to base58.\n");
+                flow_status = APP_ERR_CRYPTO;
+            }
         }
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
 
-    {
-        double sol_amount = (double)lamports / (double)SOLANA_LAMPORTS_PER_SOL;
-        printf("Requested %" PRIu64 " lamports (%.9f SOL).\n", lamports, sol_amount);
-    }
-
-    if ((response == NULL) ||
-        (parse_json_string_field(response, "result", signature, sizeof(signature)) == 0))
-    {
-        printf("requestAirdrop response: %s\n", (response != NULL) ? response : "(null)");
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    printf("Transaction signature: %s\n", signature);
-
-    if (response != NULL)
-    {
-        solana_client_free_response(response);
-        response = NULL;
-    }
-
-    printf("Waiting for airdrop confirmation...\n");
-
-    {
-        int confirmation = wait_for_signature_confirmation(&client, signature, SOLANA_AIRDROP_TIMEOUT_SECONDS);
-        if (confirmation == 1)
+        if (flow_status == APP_OK)
         {
-            printf("Airdrop confirmed.\n");
-            print_solscan_link(signature, rpc_url);
+            printf("Using wallet stored in %s.\n", var_buffer);
+            printf("Public key: %s\n", public_key_base58);
+
+            if (prompt_lamports(&lamports) == 0)
+            {
+                flow_status = APP_ERR_IO;
+            }
         }
-        else if (confirmation < 0)
+
+        if (flow_status == APP_OK)
         {
-            fprintf(stderr, "Airdrop confirmation returned an error.\n");
-            status = APP_ERR_IO;
-            goto exit_function;
+            rpc_url = solana_resolve_rpc_url();
+            if (solana_client_init(&client, rpc_url) != SOLANA_OK)
+            {
+                fprintf(stderr, "Failed to initialize Solana client.\n");
+                flow_status = APP_ERR_IO;
+            }
+            else
+            {
+                client_initialized = 1;
+            }
         }
-        else
+
+        if (flow_status == APP_OK)
         {
-            fprintf(stderr, "Timed out waiting for airdrop confirmation.\n");
-            status = APP_ERR_IO;
-            goto exit_function;
+            if (solana_client_request_airdrop(&client, public_key_base58, lamports, &response) != SOLANA_OK)
+            {
+                fprintf(stderr, "requestAirdrop RPC call failed.\n");
+                if (response != NULL)
+                {
+                    fprintf(stderr, "%s\n", response);
+                }
+                flow_status = APP_ERR_IO;
+            }
         }
+
+        if (flow_status == APP_OK)
+        {
+            double sol_amount = (double)lamports / (double)SOLANA_LAMPORTS_PER_SOL;
+            printf("Requested %" PRIu64 " lamports (%.9f SOL).\n", lamports, sol_amount);
+
+            if ((response == NULL) ||
+                (parse_json_string_field(response, "result", signature, sizeof(signature)) == 0))
+            {
+                printf("requestAirdrop response: %s\n", (response != NULL) ? response : "(null)");
+                flow_status = APP_ERR_IO;
+            }
+            else
+            {
+                printf("Transaction signature: %s\n", signature);
+            }
+        }
+
+        if (flow_status == APP_OK)
+        {
+            if (response != NULL)
+            {
+                solana_client_free_response(response);
+                response = NULL;
+            }
+
+            printf("Waiting for airdrop confirmation...\n");
+            {
+                int confirmation = wait_for_signature_confirmation(&client, signature, SOLANA_AIRDROP_TIMEOUT_SECONDS);
+                if (confirmation == 1)
+                {
+                    printf("Airdrop confirmed.\n");
+                    print_solscan_link(signature, rpc_url);
+                }
+                else if (confirmation < 0)
+                {
+                    fprintf(stderr, "Airdrop confirmation returned an error.\n");
+                    flow_status = APP_ERR_IO;
+                }
+                else
+                {
+                    fprintf(stderr, "Timed out waiting for airdrop confirmation.\n");
+                    flow_status = APP_ERR_IO;
+                }
+            }
+        }
+
+        status = flow_status;
     }
 
-    status = APP_OK;
-
-exit_function:
     if (response != NULL)
     {
         solana_client_free_response(response);
@@ -1338,7 +1368,7 @@ exit_function:
 
 static int show_public_key_balance(CalcSession *session)
 {
-    int status = APP_ERR_IO;
+    int status = APP_ERR_NO_CALC;
     char var_buffer[STRING_VAR_BUFFER_LENGTH] = {0};
     uint8_t blob[WALLET_BLOB_LEN];
     uint8_t public_key[WALLET_PUBLIC_KEY_LEN];
@@ -1350,65 +1380,64 @@ static int show_public_key_balance(CalcSession *session)
     memset(&client, 0, sizeof(client));
     memset(public_key_base58, 0, sizeof(public_key_base58));
 
-    if (session == NULL)
+    if (session != NULL)
     {
-        status = APP_ERR_NO_CALC;
-        goto exit_function;
-    }
-
-    status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
-    if (status != APP_OK)
-    {
-        goto exit_function;
-    }
-
-    if (solana_base58_encode(public_key, sizeof(public_key), public_key_base58, sizeof(public_key_base58)) <= 0)
-    {
-        fprintf(stderr, "Failed to encode public key to base58.\n");
-        status = APP_ERR_CRYPTO;
-        goto exit_function;
-    }
-
-    printf("Using wallet stored in %s.\n", var_buffer);
-    printf("Public key: %s\n", public_key_base58);
-
-    if (solana_client_init(&client, solana_resolve_rpc_url()) != SOLANA_OK)
-    {
-        fprintf(stderr, "Failed to initialize Solana client.\n");
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    client_initialized = 1;
-
-    if (solana_client_get_balance(&client, public_key_base58, &response) != SOLANA_OK)
-    {
-        fprintf(stderr, "getBalance RPC call failed.\n");
-        if (response != NULL)
+        int flow_status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
+        if (flow_status == APP_OK)
         {
-            fprintf(stderr, "%s\n", response);
+            if (solana_base58_encode(public_key, sizeof(public_key), public_key_base58, sizeof(public_key_base58)) <= 0)
+            {
+                fprintf(stderr, "Failed to encode public key to base58.\n");
+                flow_status = APP_ERR_CRYPTO;
+            }
         }
-        status = APP_ERR_IO;
-        goto exit_function;
+
+        if (flow_status == APP_OK)
+        {
+            printf("Using wallet stored in %s.\n", var_buffer);
+            printf("Public key: %s\n", public_key_base58);
+
+            if (solana_client_init(&client, solana_resolve_rpc_url()) != SOLANA_OK)
+            {
+                fprintf(stderr, "Failed to initialize Solana client.\n");
+                flow_status = APP_ERR_IO;
+            }
+            else
+            {
+                client_initialized = 1;
+            }
+        }
+
+        if (flow_status == APP_OK)
+        {
+            if (solana_client_get_balance(&client, public_key_base58, &response) != SOLANA_OK)
+            {
+                fprintf(stderr, "getBalance RPC call failed.\n");
+                if (response != NULL)
+                {
+                    fprintf(stderr, "%s\n", response);
+                }
+                flow_status = APP_ERR_IO;
+            }
+        }
+
+        if ((flow_status == APP_OK) && (response != NULL))
+        {
+            uint64_t lamports = 0u;
+            if (parse_balance_response(response, &lamports) == 1)
+            {
+                double sol_amount = (double)lamports / (double)SOLANA_LAMPORTS_PER_SOL;
+                printf("Balance: %" PRIu64 " lamports (%.9f SOL).\n", lamports, sol_amount);
+            }
+            else
+            {
+                printf("getBalance response: %s\n", response);
+            }
+        }
+
+        status = flow_status;
     }
 
-    if (response != NULL)
-    {
-        uint64_t lamports = 0u;
-        if (parse_balance_response(response, &lamports) == 1)
-        {
-            double sol_amount = (double)lamports / (double)SOLANA_LAMPORTS_PER_SOL;
-            printf("Balance: %" PRIu64 " lamports (%.9f SOL).\n", lamports, sol_amount);
-        }
-        else
-        {
-            printf("getBalance response: %s\n", response);
-        }
-    }
-
-    status = APP_OK;
-
-exit_function:
     if (response != NULL)
     {
         solana_client_free_response(response);
@@ -1430,7 +1459,7 @@ exit_function:
 
 static int send_sol_transaction(CalcSession *session)
 {
-    int status = APP_ERR_IO;
+    int status = APP_ERR_NO_CALC;
     char var_buffer[STRING_VAR_BUFFER_LENGTH] = {0};
     uint8_t blob[WALLET_BLOB_LEN];
     uint8_t public_key[WALLET_PUBLIC_KEY_LEN];
@@ -1474,203 +1503,221 @@ static int send_sol_transaction(CalcSession *session)
         memo_len = default_memo_len;
     }
 
-    if (session == NULL)
+    if (session != NULL)
     {
-        status = APP_ERR_NO_CALC;
-        goto exit_function;
-    }
-
-    status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
-    if (status != APP_OK)
-    {
-        goto exit_function;
-    }
-
-    if (solana_base58_encode(public_key, sizeof(public_key), public_key_base58, sizeof(public_key_base58)) <= 0)
-    {
-        fprintf(stderr, "Failed to encode wallet public key.\n");
-        status = APP_ERR_CRYPTO;
-        goto exit_function;
-    }
-
-    printf("Using wallet stored in %s.\n", var_buffer);
-    printf("Sender public key: %s\n", public_key_base58);
-
-    if (prompt_lamports(&lamports) == 0)
-    {
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    if (prompt_base58_public_key("Enter recipient public key: ",
-                                 recipient_base58,
-                                 sizeof(recipient_base58),
-                                 recipient_public_key,
-                                 sizeof(recipient_public_key)) == 0)
-    {
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    {
-        char input_buffer[SOLANA_MAX_MEMO_LENGTH + 16u];
-        int memo_valid = 0;
-
-        printf("Default memo: '%s'\n", SOLANA_DEFAULT_MEMO);
-
-        while (memo_valid == 0)
+        int flow_status = fetch_wallet_payload(session, var_buffer, sizeof(var_buffer), public_key, blob, sizeof(blob));
+        if (flow_status == APP_OK)
         {
-            printf("Enter memo override (Leave blank to use default): ");
-            if (read_line(input_buffer, sizeof(input_buffer)) == 0)
+            if (solana_base58_encode(public_key, sizeof(public_key), public_key_base58, sizeof(public_key_base58)) <= 0)
             {
-                memo_valid = 1;
+                fprintf(stderr, "Failed to encode wallet public key.\n");
+                flow_status = APP_ERR_CRYPTO;
             }
-            else
+        }
+
+        if (flow_status == APP_OK)
+        {
+            printf("Using wallet stored in %s.\n", var_buffer);
+            printf("Sender public key: %s\n", public_key_base58);
+
+            if (prompt_lamports(&lamports) == 0)
             {
-                size_t input_len = strlen(input_buffer);
-                if (input_len == 0u)
+                flow_status = APP_ERR_IO;
+            }
+        }
+
+        if (flow_status == APP_OK)
+        {
+            if (prompt_base58_public_key("Enter recipient public key: ",
+                                         recipient_base58,
+                                         sizeof(recipient_base58),
+                                         recipient_public_key,
+                                         sizeof(recipient_public_key)) == 0)
+            {
+                flow_status = APP_ERR_IO;
+            }
+        }
+
+        if (flow_status == APP_OK)
+        {
+            char input_buffer[SOLANA_MAX_MEMO_LENGTH + 16u];
+            int memo_valid = 0;
+
+            printf("Default memo: '%s'\n", SOLANA_DEFAULT_MEMO);
+
+            while ((memo_valid == 0) && (flow_status == APP_OK))
+            {
+                printf("Enter memo override (Leave blank to use default): ");
+                if (read_line(input_buffer, sizeof(input_buffer)) == 0)
                 {
                     memo_valid = 1;
-                }
-                else if (input_len > SOLANA_MAX_MEMO_LENGTH)
-                {
-                    printf("Memo too long (max %u characters).\n", (unsigned)SOLANA_MAX_MEMO_LENGTH);
-                    continue;
                 }
                 else
                 {
-                    memo_index = 0u;
-                    ascii_ok = 1;
-                    for (memo_index = 0u; memo_index < input_len; memo_index++)
+                    size_t input_len = strlen(input_buffer);
+                    if (input_len == 0u)
                     {
-                        unsigned char c = (unsigned char)input_buffer[memo_index];
-                        if ((c < 32u) || (c > 126u))
+                        memo_valid = 1;
+                    }
+                    else if (input_len > SOLANA_MAX_MEMO_LENGTH)
+                    {
+                        printf("Memo too long (max %u characters).\n", (unsigned)SOLANA_MAX_MEMO_LENGTH);
+                    }
+                    else
+                    {
+                        memo_index = 0u;
+                        ascii_ok = 1;
+                        for (memo_index = 0u; memo_index < input_len; memo_index++)
                         {
-                            ascii_ok = 0;
-                            break;
+                            unsigned char c = (unsigned char)input_buffer[memo_index];
+                            if ((c < 32u) || (c > 126u))
+                            {
+                                ascii_ok = 0;
+                                break;
+                            }
+                        }
+
+                        if (ascii_ok == 0)
+                        {
+                            printf("Memo must contain printable ASCII characters only.\n");
+                        }
+                        else
+                        {
+                            memcpy(memo_buffer, input_buffer, input_len);
+                            memo_buffer[input_len] = '\0';
+                            memo_len = input_len;
+                            memo_valid = 1;
                         }
                     }
+                }
+            }
 
-                    if (ascii_ok == 0)
-                    {
-                        printf("Memo must contain printable ASCII characters only.\n");
-                        continue;
-                    }
+            if (memo_valid == 0)
+            {
+                flow_status = APP_ERR_IO;
+            }
+        }
 
-                    memcpy(memo_buffer, input_buffer, input_len);
-                    memo_buffer[input_len] = '\0';
-                    memo_len = input_len;
-                    memo_valid = 1;
+        if (flow_status == APP_OK)
+        {
+            if (prompt_password(password, sizeof(password), "Enter password to decrypt wallet: ") == 0)
+            {
+                flow_status = APP_ERR_IO;
+            }
+            else
+            {
+                flow_status = wallet_decrypt_private_key(password, blob, sizeof(blob), private_key, sizeof(private_key));
+                if (flow_status != APP_OK)
+                {
+                    fprintf(stderr, "Unable to decrypt private key (error %d).\n", flow_status);
                 }
             }
         }
-    }
 
-    if (prompt_password(password, sizeof(password), "Enter password to decrypt wallet: ") == 0)
-    {
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
+        wallet_secure_zero(password, sizeof(password));
 
-    status = wallet_decrypt_private_key(password, blob, sizeof(blob), private_key, sizeof(private_key));
-    wallet_secure_zero(password, sizeof(password));
-    if (status != APP_OK)
-    {
-        fprintf(stderr, "Unable to decrypt private key (error %d).\n", status);
-        goto exit_function;
-    }
-
-    rpc_url = solana_resolve_rpc_url();
-
-    if (solana_client_init(&client, rpc_url) != SOLANA_OK)
-    {
-        fprintf(stderr, "Failed to initialize Solana client.\n");
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    client_initialized = 1;
-
-    if (solana_client_get_latest_blockhash(&client, &blockhash_response) != SOLANA_OK)
-    {
-        fprintf(stderr, "getLatestBlockhash RPC call failed.\n");
-        if (blockhash_response != NULL)
+        if (flow_status == APP_OK)
         {
-            fprintf(stderr, "%s\n", blockhash_response);
+            rpc_url = solana_resolve_rpc_url();
+            if (solana_client_init(&client, rpc_url) != SOLANA_OK)
+            {
+                fprintf(stderr, "Failed to initialize Solana client.\n");
+                flow_status = APP_ERR_IO;
+            }
+            else
+            {
+                client_initialized = 1;
+            }
         }
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
 
-    if ((blockhash_response == NULL) ||
-        (parse_json_string_field(blockhash_response, "blockhash", blockhash_base58, sizeof(blockhash_base58)) == 0) ||
-        (solana_base58_decode(blockhash_base58, recent_blockhash, sizeof(recent_blockhash)) != (int)sizeof(recent_blockhash)))
-    {
-        fprintf(stderr, "Failed to parse recent blockhash.\n");
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
-
-    status = solana_build_transfer_transaction(public_key,
-                                               recipient_public_key,
-                                               lamports,
-                                               recent_blockhash,
-                                               private_key,
-                                               (memo_len > 0u) ? memo_buffer : NULL,
-                                               memo_len,
-                                               transaction_base64,
-                                               sizeof(transaction_base64),
-                                               signature_base58,
-                                               sizeof(signature_base58));
-    wallet_secure_zero(private_key, sizeof(private_key));
-    if (status != APP_OK)
-    {
-        fprintf(stderr, "Failed to build transfer transaction.\n");
-        goto exit_function;
-    }
-
-    if (solana_client_send_transaction(&client, transaction_base64, &send_response) != SOLANA_OK)
-    {
-        fprintf(stderr, "sendTransaction RPC call failed.\n");
-        if (send_response != NULL)
+        if (flow_status == APP_OK)
         {
-            fprintf(stderr, "%s\n", send_response);
+            if (solana_client_get_latest_blockhash(&client, &blockhash_response) != SOLANA_OK)
+            {
+                fprintf(stderr, "getLatestBlockhash RPC call failed.\n");
+                if (blockhash_response != NULL)
+                {
+                    fprintf(stderr, "%s\n", blockhash_response);
+                }
+                flow_status = APP_ERR_IO;
+            }
         }
-        status = APP_ERR_IO;
-        goto exit_function;
-    }
 
-    wallet_secure_zero(transaction_base64, sizeof(transaction_base64));
+        if (flow_status == APP_OK)
+        {
+            if ((blockhash_response == NULL) ||
+                (parse_json_string_field(blockhash_response, "blockhash", blockhash_base58, sizeof(blockhash_base58)) == 0) ||
+                (solana_base58_decode(blockhash_base58, recent_blockhash, sizeof(recent_blockhash)) != (int)sizeof(recent_blockhash)))
+            {
+                fprintf(stderr, "Failed to parse recent blockhash.\n");
+                flow_status = APP_ERR_IO;
+            }
+        }
 
-    printf("Transaction submitted. Signature: %s\n", signature_base58);
-    print_solscan_link(signature_base58, rpc_url);
-    printf("Waiting for transfer confirmation...\n");
-
-    {
-        int confirmation = wait_for_signature_confirmation(&client,
+        if (flow_status == APP_OK)
+        {
+            flow_status = solana_build_transfer_transaction(public_key,
+                                                            recipient_public_key,
+                                                            lamports,
+                                                            recent_blockhash,
+                                                            private_key,
+                                                            (memo_len > 0u) ? memo_buffer : NULL,
+                                                            memo_len,
+                                                            transaction_base64,
+                                                            sizeof(transaction_base64),
                                                             signature_base58,
-                                                            SOLANA_TRANSFER_TIMEOUT_SECONDS);
-        if (confirmation == 1)
-        {
-            printf("Transfer confirmed.\n");
+                                                            sizeof(signature_base58));
+            if (flow_status != APP_OK)
+            {
+                fprintf(stderr, "Failed to build transfer transaction.\n");
+            }
         }
-        else if (confirmation < 0)
+
+        wallet_secure_zero(private_key, sizeof(private_key));
+
+        if (flow_status == APP_OK)
         {
-            fprintf(stderr, "Transfer confirmation returned an error.\n");
-            status = APP_ERR_IO;
-            goto exit_function;
+            if (solana_client_send_transaction(&client, transaction_base64, &send_response) != SOLANA_OK)
+            {
+                fprintf(stderr, "sendTransaction RPC call failed.\n");
+                if (send_response != NULL)
+                {
+                    fprintf(stderr, "%s\n", send_response);
+                }
+                flow_status = APP_ERR_IO;
+            }
+            else
+            {
+                wallet_secure_zero(transaction_base64, sizeof(transaction_base64));
+                printf("Transaction submitted. Signature: %s\n", signature_base58);
+                print_solscan_link(signature_base58, rpc_url);
+                printf("Waiting for transfer confirmation...\n");
+
+                {
+                    int confirmation = wait_for_signature_confirmation(&client,
+                                                                        signature_base58,
+                                                                        SOLANA_TRANSFER_TIMEOUT_SECONDS);
+                    if (confirmation == 1)
+                    {
+                        printf("Transfer confirmed.\n");
+                    }
+                    else if (confirmation < 0)
+                    {
+                        fprintf(stderr, "Transfer confirmation returned an error.\n");
+                        flow_status = APP_ERR_IO;
+                    }
+                    else
+                    {
+                        fprintf(stderr, "Timed out waiting for transfer confirmation.\n");
+                        flow_status = APP_ERR_IO;
+                    }
+                }
+            }
         }
-        else
-        {
-            fprintf(stderr, "Timed out waiting for transfer confirmation.\n");
-            status = APP_ERR_IO;
-            goto exit_function;
-        }
+
+        status = flow_status;
     }
 
-    status = APP_OK;
-
-exit_function:
     if (send_response != NULL)
     {
         size_t response_len = strlen(send_response);

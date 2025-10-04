@@ -110,68 +110,57 @@ int wallet_encrypt_private_key(const char *password,
     memset(mac_full, 0, sizeof(mac_full));
     memset(mac_truncated, 0, sizeof(mac_truncated));
 
-    if ((password == NULL) || (private_key == NULL) || (out_blob == NULL))
+    if ((password != NULL) && (private_key != NULL) && (out_blob != NULL))
     {
-        goto exit_function;
-    }
-
-    if ((private_key_len != WALLET_PRIVATE_KEY_LEN) || (out_blob_len < WALLET_BLOB_LEN))
-    {
-        goto exit_function;
-    }
-
-    password_len = strlen(password);
-    if (password_len == 0u)
-    {
-        goto exit_function;
-    }
-
-    if ((wallet_random_bytes(salt, sizeof(salt)) != APP_OK) ||
-        (wallet_random_bytes(nonce, sizeof(nonce)) != APP_OK))
-    {
-        goto exit_function;
-    }
-
-    status = pbkdf2_hmac_sha512((const uint8_t *)password,
-                                password_len,
-                                salt,
-                                sizeof(salt),
-                                PBKDF2_ITERATIONS,
-                                master_key,
-                                sizeof(master_key));
-    if (status != APP_OK)
-    {
-        status = APP_ERR_CRYPTO;
-        goto exit_function;
-    }
-
-    derive_stream_key(master_key, nonce, sizeof(nonce), "ENC", keystream, sizeof(keystream));
-    derive_stream_key(master_key, nonce, sizeof(nonce), "MAC", mac_key, sizeof(mac_key));
-
-    if (private_key_len == WALLET_PRIVATE_KEY_LEN)
-    {
-        size_t index = 0u;
-        for (index = 0u; index < WALLET_PRIVATE_KEY_LEN; index++)
+        if ((private_key_len == WALLET_PRIVATE_KEY_LEN) && (out_blob_len >= WALLET_BLOB_LEN))
         {
-            ciphertext[index] = private_key[index] ^ keystream[index];
+            password_len = strlen(password);
+            if (password_len > 0u)
+            {
+                int salt_status = wallet_random_bytes(salt, sizeof(salt));
+                int nonce_status = wallet_random_bytes(nonce, sizeof(nonce));
+                if ((salt_status == APP_OK) && (nonce_status == APP_OK))
+                {
+                    status = pbkdf2_hmac_sha512((const uint8_t *)password,
+                                                password_len,
+                                                salt,
+                                                sizeof(salt),
+                                                PBKDF2_ITERATIONS,
+                                                master_key,
+                                                sizeof(master_key));
+                    if (status == APP_OK)
+                    {
+                        derive_stream_key(master_key, nonce, sizeof(nonce), "ENC", keystream, sizeof(keystream));
+                        derive_stream_key(master_key, nonce, sizeof(nonce), "MAC", mac_key, sizeof(mac_key));
+
+                        for (size_t index = 0u; index < WALLET_PRIVATE_KEY_LEN; index++)
+                        {
+                            ciphertext[index] = private_key[index] ^ keystream[index];
+                        }
+
+                        memcpy(auth_input, nonce, sizeof(nonce));
+                        memcpy(auth_input + sizeof(nonce), ciphertext, sizeof(ciphertext));
+
+                        hmac_sha512(mac_key, sizeof(mac_key), auth_input, sizeof(auth_input), mac_full);
+                        memcpy(mac_truncated, mac_full, sizeof(mac_truncated));
+
+                        out_blob[0] = WALLET_BLOB_VERSION;
+                        memcpy(out_blob + 1u, salt, sizeof(salt));
+                        memcpy(out_blob + 1u + sizeof(salt), nonce, sizeof(nonce));
+                        memcpy(out_blob + 1u + sizeof(salt) + sizeof(nonce), ciphertext, sizeof(ciphertext));
+                        memcpy(out_blob + 1u + sizeof(salt) + sizeof(nonce) + sizeof(ciphertext), mac_truncated, sizeof(mac_truncated));
+
+                        status = APP_OK;
+                    }
+                    else
+                    {
+                        status = APP_ERR_CRYPTO;
+                    }
+                }
+            }
         }
     }
 
-    memcpy(auth_input, nonce, sizeof(nonce));
-    memcpy(auth_input + sizeof(nonce), ciphertext, sizeof(ciphertext));
-
-    hmac_sha512(mac_key, sizeof(mac_key), auth_input, sizeof(auth_input), mac_full);
-    memcpy(mac_truncated, mac_full, sizeof(mac_truncated));
-
-    out_blob[0] = WALLET_BLOB_VERSION;
-    memcpy(out_blob + 1u, salt, sizeof(salt));
-    memcpy(out_blob + 1u + sizeof(salt), nonce, sizeof(nonce));
-    memcpy(out_blob + 1u + sizeof(salt) + sizeof(nonce), ciphertext, sizeof(ciphertext));
-    memcpy(out_blob + 1u + sizeof(salt) + sizeof(nonce) + sizeof(ciphertext), mac_truncated, sizeof(mac_truncated));
-
-    status = APP_OK;
-
-exit_function:
     wallet_secure_zero(master_key, sizeof(master_key));
     wallet_secure_zero(keystream, sizeof(keystream));
     wallet_secure_zero(mac_key, sizeof(mac_key));
@@ -209,84 +198,76 @@ int wallet_decrypt_private_key(const char *password,
     memset(auth_input, 0, sizeof(auth_input));
     memset(mac_full, 0, sizeof(mac_full));
 
-    if ((password == NULL) || (blob == NULL) || (out_private_key == NULL))
+    if ((password != NULL) && (blob != NULL) && (out_private_key != NULL))
     {
-        goto exit_function;
-    }
-
-    if ((blob_len < WALLET_BLOB_LEN) || (private_key_len != WALLET_PRIVATE_KEY_LEN))
-    {
-        goto exit_function;
-    }
-
-    password_len = strlen(password);
-    if (password_len == 0u)
-    {
-        goto exit_function;
-    }
-
-    if (blob[0] != WALLET_BLOB_VERSION)
-    {
-        status = APP_ERR_CRYPTO;
-        goto exit_function;
-    }
-
-    salt = blob + 1u;
-    nonce = salt + WALLET_SALT_LEN;
-    ciphertext = nonce + WALLET_NONCE_LEN;
-    mac = ciphertext + WALLET_PRIVATE_KEY_LEN;
-
-    status = pbkdf2_hmac_sha512((const uint8_t *)password,
-                                password_len,
-                                salt,
-                                WALLET_SALT_LEN,
-                                PBKDF2_ITERATIONS,
-                                master_key,
-                                sizeof(master_key));
-    if (status != APP_OK)
-    {
-        status = APP_ERR_CRYPTO;
-        goto exit_function;
-    }
-
-    derive_stream_key(master_key, nonce, WALLET_NONCE_LEN, "MAC", mac_key, sizeof(mac_key));
-
-    memcpy(auth_input, nonce, WALLET_NONCE_LEN);
-    memcpy(auth_input + WALLET_NONCE_LEN, ciphertext, WALLET_PRIVATE_KEY_LEN);
-
-    hmac_sha512(mac_key, sizeof(mac_key), auth_input, sizeof(auth_input), mac_full);
-
-    if (constant_time_compare(mac, mac_full, WALLET_MAC_LEN) != 0)
-    {
-        status = APP_ERR_CRYPTO;
-        wallet_secure_zero(out_private_key, private_key_len);
-        goto exit_function;
-    }
-
-    derive_stream_key(master_key, nonce, WALLET_NONCE_LEN, "ENC", keystream, sizeof(keystream));
-
-    if (private_key_len == WALLET_PRIVATE_KEY_LEN)
-    {
-        size_t index = 0u;
-        for (index = 0u; index < WALLET_PRIVATE_KEY_LEN; index++)
+        if ((blob_len >= WALLET_BLOB_LEN) && (private_key_len == WALLET_PRIVATE_KEY_LEN))
         {
-            out_private_key[index] = ciphertext[index] ^ keystream[index];
+            password_len = strlen(password);
+            if (password_len > 0u)
+            {
+                if (blob[0] == WALLET_BLOB_VERSION)
+                {
+                    salt = blob + 1u;
+                    nonce = salt + WALLET_SALT_LEN;
+                    ciphertext = nonce + WALLET_NONCE_LEN;
+                    mac = ciphertext + WALLET_PRIVATE_KEY_LEN;
+
+                    status = pbkdf2_hmac_sha512((const uint8_t *)password,
+                                                password_len,
+                                                salt,
+                                                WALLET_SALT_LEN,
+                                                PBKDF2_ITERATIONS,
+                                                master_key,
+                                                sizeof(master_key));
+                    if (status == APP_OK)
+                    {
+                        int mac_mismatch = 0;
+
+                        derive_stream_key(master_key, nonce, WALLET_NONCE_LEN, "MAC", mac_key, sizeof(mac_key));
+                        memcpy(auth_input, nonce, WALLET_NONCE_LEN);
+                        memcpy(auth_input + WALLET_NONCE_LEN, ciphertext, WALLET_PRIVATE_KEY_LEN);
+                        hmac_sha512(mac_key, sizeof(mac_key), auth_input, sizeof(auth_input), mac_full);
+                        mac_mismatch = constant_time_compare(mac, mac_full, WALLET_MAC_LEN);
+
+                        if (mac_mismatch == 0)
+                        {
+                            derive_stream_key(master_key, nonce, WALLET_NONCE_LEN, "ENC", keystream, sizeof(keystream));
+
+                            for (size_t index = 0u; index < WALLET_PRIVATE_KEY_LEN; index++)
+                            {
+                                out_private_key[index] = ciphertext[index] ^ keystream[index];
+                            }
+
+                            status = APP_OK;
+                        }
+                        else
+                        {
+                            status = APP_ERR_CRYPTO;
+                        }
+                    }
+                    else
+                    {
+                        status = APP_ERR_CRYPTO;
+                    }
+                }
+                else
+                {
+                    status = APP_ERR_CRYPTO;
+                }
+            }
         }
     }
-
-    status = APP_OK;
-
-exit_function:
-    wallet_secure_zero(master_key, sizeof(master_key));
-    wallet_secure_zero(mac_key, sizeof(mac_key));
-    wallet_secure_zero(mac_full, sizeof(mac_full));
-    wallet_secure_zero(auth_input, sizeof(auth_input));
-    wallet_secure_zero(keystream, sizeof(keystream));
 
     if ((status != APP_OK) && (out_private_key != NULL) && (private_key_len == WALLET_PRIVATE_KEY_LEN))
     {
         wallet_secure_zero(out_private_key, private_key_len);
     }
+
+    wallet_secure_zero(master_key, sizeof(master_key));
+    wallet_secure_zero(mac_key, sizeof(mac_key));
+    wallet_secure_zero(mac_full, sizeof(mac_full));
+    wallet_secure_zero(auth_input, sizeof(auth_input));
+    wallet_secure_zero(keystream, sizeof(keystream));
 
     return status;
 }
