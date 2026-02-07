@@ -476,3 +476,58 @@ static int build_binary_entry(CalcSession *session, const char *var_name, const 
 
     return status;
 }
+
+int calc_fetch_binary_string(CalcSession *session, const char *var_name, uint8_t *out_data, size_t out_size, size_t *out_len)
+{
+    FileContent *content = NULL;
+    VarEntry *entry = NULL;
+    int status = APP_ERR_IO;
+
+    if ((session == NULL) || (var_name == NULL) || (out_data == NULL) || (out_len == NULL))
+    {
+        return APP_ERR_IO;
+    }
+
+    *out_len = 0u;
+
+    status = calc_fetch_string(session, var_name, &content);
+    if (status != APP_OK)
+    {
+        return status;
+    }
+
+    if ((content == NULL) || (content->num_entries == 0u) || (content->entries == NULL) || (content->entries[0] == NULL))
+    {
+        status = APP_ERR_IO;
+    }
+    else
+    {
+        entry = content->entries[0];
+        if ((entry->data == NULL) || (entry->size < 1u))
+        {
+            status = APP_ERR_IO;
+        }
+        else
+        {
+            /* data format: [1-byte length prefix][payload] */
+            uint8_t payload_length = entry->data[0];
+            if ((payload_length > (entry->size - 1u)) || ((size_t)payload_length > out_size))
+            {
+                status = APP_ERR_IO;
+            }
+            else
+            {
+                memcpy(out_data, entry->data + 1u, payload_length);
+                *out_len = (size_t)payload_length;
+                status = APP_OK;
+            }
+        }
+    }
+
+    if (content != NULL)
+    {
+        tifiles_content_delete_regular(content);
+    }
+
+    return status;
+}

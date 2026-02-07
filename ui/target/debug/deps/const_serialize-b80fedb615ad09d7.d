@@ -1,0 +1,8 @@
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/const_serialize-b80fedb615ad09d7.d: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_buffers.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_vec.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/../README.md
+
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/libconst_serialize-b80fedb615ad09d7.rmeta: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_buffers.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_vec.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/../README.md
+
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/lib.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_buffers.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/const_vec.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const-serialize-0.6.2/src/../README.md:

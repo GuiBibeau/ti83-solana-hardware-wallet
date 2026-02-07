@@ -13,6 +13,7 @@ extern "C" {
 int calc_store_persistent_string(CalcSession *session, const char *var_name, const char *payload);
 int calc_fetch_string(CalcSession *session, const char *var_name, FileContent **out_content);
 int calc_store_binary_string(CalcSession *session, const char *var_name, const uint8_t *payload, size_t payload_len);
+int calc_fetch_binary_string(CalcSession *session, const char *var_name, uint8_t *out_data, size_t out_size, size_t *out_len);
 
 #ifdef __cplusplus
 }

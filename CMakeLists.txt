@@ -52,6 +52,33 @@ pkg_check_modules(glib REQUIRED IMPORTED_TARGET glib-2.0)
 
 target_link_libraries(solana PUBLIC CURL::libcurl)
 
+# Static library for FFI consumption (Rust UI)
+add_library(cwallet STATIC
+    calc_session.c
+    calc_string_store.c
+    wallet_crypto.c
+    ${KEYPAIR_SOURCES}
+)
+
+target_include_directories(cwallet PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/keypair
+    ${CMAKE_CURRENT_SOURCE_DIR}/tilibs/libticables/trunk/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tilibs/libticalcs/trunk/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tilibs/libticonv/trunk/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tilibs/libtifiles/trunk/src
+)
+
+target_link_libraries(cwallet PUBLIC
+    ticalcs2
+    tifiles2
+    ticables2
+    ticonv
+    Threads::Threads
+    PkgConfig::glib
+    solana
+)
+
 target_link_libraries(main PRIVATE
     ticalcs2
     tifiles2

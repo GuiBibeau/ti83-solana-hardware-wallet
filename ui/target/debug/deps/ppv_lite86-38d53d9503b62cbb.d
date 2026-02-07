@@ -1,0 +1,8 @@
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/ppv_lite86-38d53d9503b62cbb.d: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/soft.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/types.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/generic.rs
+
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/libppv_lite86-38d53d9503b62cbb.rmeta: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/soft.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/types.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/generic.rs
+
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/lib.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/soft.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/types.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ppv-lite86-0.2.21/src/generic.rs:

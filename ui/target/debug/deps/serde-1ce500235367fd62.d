@@ -1,0 +1,12 @@
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/serde-1ce500235367fd62.d: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/serde-7ceb09fb5009e528/out/private.rs
+
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/libserde-1ce500235367fd62.rmeta: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/serde-7ceb09fb5009e528/out/private.rs
+
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/serde-7ceb09fb5009e528/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/serde-7ceb09fb5009e528/out

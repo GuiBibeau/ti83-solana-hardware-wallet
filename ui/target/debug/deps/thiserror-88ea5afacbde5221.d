@@ -1,0 +1,12 @@
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/thiserror-88ea5afacbde5221.d: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/thiserror-b84c3459e91921f8/out/private.rs
+
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/libthiserror-88ea5afacbde5221.rmeta: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/thiserror-b84c3459e91921f8/out/private.rs
+
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs:
+/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs:
+/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/thiserror-b84c3459e91921f8/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/build/thiserror-b84c3459e91921f8/out

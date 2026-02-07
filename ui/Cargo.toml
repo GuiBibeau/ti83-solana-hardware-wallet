@@ -1,0 +1,3 @@
+[workspace]
+members = ["cwallet-sys", "cwallet-ui"]
+resolver = "2"

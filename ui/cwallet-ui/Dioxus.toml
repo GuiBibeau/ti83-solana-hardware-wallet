@@ -1,0 +1,6 @@
+[application]
+name = "cwallet-ui"
+default_platform = "desktop"
+
+[desktop]
+title = "TI-83+ Wallet"
