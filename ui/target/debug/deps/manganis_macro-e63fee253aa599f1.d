@@ -1,8 +1,0 @@
-/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/manganis_macro-e63fee253aa599f1.d: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/asset.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/linker.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/../README.md
-
-/Users/guillaumebibeau-laviolette/github/c_wallet/ui/target/debug/deps/libmanganis_macro-e63fee253aa599f1.dylib: /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/lib.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/asset.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/linker.rs /Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/../README.md
-
-/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/lib.rs:
-/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/asset.rs:
-/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/linker.rs:
-/Users/guillaumebibeau-laviolette/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/manganis-macro-0.6.2/src/../README.md:

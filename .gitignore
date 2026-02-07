@@ -11,3 +11,5 @@ CMakeCache.txt
 CMakeFiles/
 *.cmake
 .vscode/
+ui/target/
+.DS_Store

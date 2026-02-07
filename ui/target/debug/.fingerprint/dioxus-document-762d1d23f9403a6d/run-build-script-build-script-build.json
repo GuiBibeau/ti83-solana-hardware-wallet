@@ -1,1 +1,0 @@
-{"rustc":18415816196306954164,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[2415174312781903822,"build_script_build",false,4701404164921066139]],"local":[{"RerunIfChanged":{"output":"debug/build/dioxus-document-762d1d23f9403a6d/output","paths":["./src/ts/eval.ts","./src/ts/head.ts"]}}],"rustflags":[],"config":0,"compile_kind":0}

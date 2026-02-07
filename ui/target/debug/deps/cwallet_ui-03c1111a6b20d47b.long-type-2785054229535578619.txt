@@ -1,1 +1,0 @@
-Callback<dioxus::prelude::Event<MouseData>>: SuperFrom<{closure@cwallet-ui/src/components/balance.rs:19:19: 19:27}, _>
