@@ -8,12 +8,25 @@ The project blends calculator-side firmware written in C with vendored cryptogra
 
 - `main.c`: Entry point that boots the calculator app, wires up session state, and drives the polling loop.
 - `calc_session.c/.h`: Abstractions for the TI Link stack, including session lifecycle, cable detection, and message polling.
-- `calc_string_store.c/.h`: Lightweight helpers for storing and retrieving calculator UI strings.
+- `calc_string_store.c/.h`: Lightweight helpers for storing and retrieving calculator string variables.
 - `wallet_crypto.c/.h`: High-level wallet primitives such as key derivation and signature orchestration built on the vendored Ed25519 stack.
 - `examples.c`: Reference snippets that exercise the link layer and signing flow for development and testing.
 - `solana/`: Modules specific to Solana encoding and client operations.
 - `keypair/`: Vendored Ed25519 implementation used for key generation, hashing, and signature creation.
 - `tilibs/`: Vendored TI connectivity libraries providing cable drivers, calculator protocol helpers, and file format utilities.
+
+### Desktop UI (`ui/`)
+
+A Rust/Dioxus desktop application that wraps the C library via FFI, providing a graphical interface for all wallet operations.
+
+- `cwallet-sys/`: FFI bindings crate — manual declarations for all C functions (no bindgen).
+- `cwallet-ui/`: Dioxus 0.6 desktop app with sidebar navigation, keypair management, and Solana operations.
+
+Features:
+- Connect/disconnect TI-83+ calculator
+- Create and load keypairs across 10 slots (Str0–Str9)
+- Check SOL balance, request devnet airdrops, send SOL transfers
+- Adaptive light/dark theme following system appearance
 
 ### Solana Modules (`solana/`)
 
@@ -55,9 +68,15 @@ For deeper validation of the vendored TI libraries, review `TI_TILibs_Cheatsheet
 
 ## Getting Started
 
+### CLI
+
 1. Install a modern C toolchain with CMake support (C11 compatible compiler and make).
 2. Connect a TI-83 Plus via a TI USB SilverLink cable or simulator that exposes the same protocol.
 3. Run `make configure` followed by `make build` to compile the project.
-4. Execute `make run` to start the calculator-host interaction loop and send Solana signing requests from the host utility.
+4. Execute `make run` to start the calculator-host interaction loop.
 
-Refer to the source files under `solana/` and `wallet_crypto.c` for guidance on crafting transaction payloads and integrating with Solana RPC clients.
+### Desktop UI
+
+1. Install [Rust](https://rustup.rs/) and ensure `pkg-config` and `glib-2.0` are available.
+2. From the `ui/` directory, run `cargo run -p cwallet-ui`.
+3. The desktop window will open — connect your calculator using the top-right button, then select a keypair slot from the dropdown.
